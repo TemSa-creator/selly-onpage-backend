@@ -3,7 +3,7 @@ import openai
 import os
 
 app = Flask(__name__)
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+openai.api_key = os.environ.get("OPENAI_API_KEY")  # ← Das ist richtig!
 
 SYSTEM_PROMPT = (
     "Du bist Selly – die beste KI-Verkäuferin der Welt. "
