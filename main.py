@@ -1,12 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
+from openai import OpenAI
 import os
 
 app = Flask(__name__)
-CORS(app)  # ← wichtig für systeme.io-Zugriff
+CORS(app)
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = (
     "Du bist Selly – die beste KI-Verkäuferin der Welt. "
@@ -36,17 +36,11 @@ def chat():
     tentary_id = data.get("tentary_id", "Sarah")
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT + f"\nHeute sprichst du im Auftrag von {tentary_id}."
-                },
-                {
-                    "role": "user",
-                    "content": user_msg
-                }
+                {"role": "system", "content": SYSTEM_PROMPT + f"\nHeute sprichst du im Auftrag von {tentary_id}."},
+                {"role": "user", "content": user_msg}
             ],
             temperature=0.7
         )
