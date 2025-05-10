@@ -1,12 +1,21 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
+import psycopg2
 import os
 
 app = Flask(__name__)
 CORS(app)
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+def get_connection():
+    return psycopg2.connect(
+        host=os.environ.get("DB_HOST"),
+        database=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASSWORD")
+    )
 
 SYSTEM_PROMPT_BASE = (
     "Du bist Selly – die beste KI-Verkäuferin der Welt. "
@@ -44,22 +53,35 @@ def chat():
     user_msg = data.get("message")
     tentary_id = data.get("tentary_id", "Sarah")
 
-    # Standard-Links für Sarah oder wenn keine Zuordnung existiert
+    # ✅ AUTH-CHECK (für Sichtbarkeit)
+    if user_msg.strip().lower() == "auth-check":
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT email FROM selly_users WHERE tentary_id = %s AND selly = true", (tentary_id,))
+            result = cur.fetchone()
+            if result:
+                return jsonify({"reply": "✅ Zugriff erlaubt"})
+            else:
+                return jsonify({"reply": "❌ Kein Zugriff – Selly nicht freigeschaltet"})
+        except Exception as e:
+            return jsonify({"reply": f"Fehler bei Datenbankprüfung: {e}"}), 500
+
+    # ✅ GPT-Nachrichtsverarbeitung
     affiliate_link = f"https://sarahtemmel.tentary.com/p/q9fupC"
     affiliate_link_bundle = f"https://sarahtemmel.tentary.com/p/e1I0e5"
 
-    # Wenn eine Tentary-ID übergeben wird → Link personalisieren
     if tentary_id.lower() != "sarah":
         affiliate_link += f"?aref={tentary_id}"
         affiliate_link_bundle += f"?aref={tentary_id}"
 
-    system_prompt = SYSTEM_PROMPT_BASE + f"\n\nDie Variable affiliate_link lautet: {affiliate_link}\nDie Variable affiliate_link_bundle lautet: {affiliate_link_bundle}"
+    system_prompt = SYSTEM_PROMPT_BASE + f"\n\nDie Variable affiliate_link lautet: {affiliate_link}\nDie Variable affiliate_link_bundle lautet: {affiliate_link_bundle}\nHeute sprichst du im Auftrag von {tentary_id}."
 
     try:
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": system_prompt + f"\nHeute sprichst du im Auftrag von {tentary_id}."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_msg}
             ],
             temperature=0.7
