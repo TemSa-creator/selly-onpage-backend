@@ -5,5 +5,5 @@ services:
     buildCommand: ""
     startCommand: python main.py
     envVars:
-      - key:
-        value: dein-openai-key-hier
+      - key: OPENAI_API_KEY
+        value: sk-...dein-geheimer-key-hier
