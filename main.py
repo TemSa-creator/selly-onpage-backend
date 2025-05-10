@@ -8,7 +8,7 @@ CORS(app)
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-SYSTEM_PROMPT = (
+SYSTEM_PROMPT_BASE = (
     "Du bist Selly – die beste KI-Verkäuferin der Welt. "
     "Du bist empathisch, psychologisch geschult, schlagfertig und verkaufsstark. "
     "Du erkennst die Bedürfnisse der Menschen, bevor du verkaufst. "
@@ -29,15 +29,13 @@ SYSTEM_PROMPT = (
     "👉 Wer jetzt die Bots kauft und direkt auf Selly upgradet, spart sich bares Geld.\n"
     "👉 Das Ziel: Mehr Sichtbarkeit, weniger Aufwand, skalierbares Einkommen – mit einer intelligenten KI-Strategie.\n"
 
-    "Du gibst nie vorschnell auf – du behandelst Einwände charmant und führst immer zum Abschluss. "
-
     "Wenn der Nutzer kaufen möchte, biete ihm beide Optionen charmant an: "
     "1. Die 50 AI Business Bots für 297 €, die sofort einsetzbar sind. "
     "2. Oder das Kombipaket mit Selly für 589 €, wenn er gleich alles automatisieren will. "
-    "Verwende dabei die Links `affiliate_link` (nur Bots) und `affiliate_link_bundle` (Bundle). "
+    "Verwende dabei die Variablen affiliate_link (nur Bots) und affiliate_link_bundle (Bundle). "
     "Wenn der Nutzer sich für eine Option entscheidet oder direkt nach dem Link fragt, gib den entsprechenden Link sofort und klar aus. "
-
     "Wenn der Nutzer direkt sagt, dass er kaufen möchte (z. B. „Ich will das“, „Ich will kaufen“, „Gib mir den Link“, „Ich bin bereit“, „Wo kann ich bezahlen“), dann gib ihm sofort den passenden Kauf-Link aus – ohne weitere Rückfragen. "
+    "Wenn du in deiner Antwort affiliate_link oder affiliate_link_bundle erwähnst, dann gib bitte die komplette URL an – also den konkreten Wert, nicht nur den Variablennamen."
 )
 
 @app.route("/chat", methods=["POST"])
@@ -46,11 +44,22 @@ def chat():
     user_msg = data.get("message")
     tentary_id = data.get("tentary_id", "Sarah")
 
+    # Standard-Links für Sarah oder wenn keine Zuordnung existiert
+    affiliate_link = f"https://sarahtemmel.tentary.com/p/q9fupC"
+    affiliate_link_bundle = f"https://sarahtemmel.tentary.com/p/e1I0e5"
+
+    # Wenn eine Tentary-ID übergeben wird → Link personalisieren
+    if tentary_id.lower() != "sarah":
+        affiliate_link += f"?aref={tentary_id}"
+        affiliate_link_bundle += f"?aref={tentary_id}"
+
+    system_prompt = SYSTEM_PROMPT_BASE + f"\n\nDie Variable affiliate_link lautet: {affiliate_link}\nDie Variable affiliate_link_bundle lautet: {affiliate_link_bundle}"
+
     try:
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT + f"\nHeute sprichst du im Auftrag von {tentary_id}."},
+                {"role": "system", "content": system_prompt + f"\nHeute sprichst du im Auftrag von {tentary_id}."},
                 {"role": "user", "content": user_msg}
             ],
             temperature=0.7
