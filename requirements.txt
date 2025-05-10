@@ -1,3 +1,4 @@
 flask
 openai
 flask-cors
+psycopg2-binary
