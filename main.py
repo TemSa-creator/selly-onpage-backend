@@ -14,10 +14,11 @@ def get_connection():
         host=os.environ.get("DB_HOST"),
         database=os.environ.get("DB_NAME"),
         user=os.environ.get("DB_USER"),
-        password=os.environ.get("DB_PASSWORD")
+        password=os.environ.get("DB_PASSWORD"),
+        port=os.environ.get("DB_PORT")
     )
 
-SYSTEM_PROMPT_BASE = (
+SYSTEM_PROMPT = (
     "Du bist Selly – die beste KI-Verkäuferin der Welt. "
     "Du bist empathisch, psychologisch geschult, schlagfertig und verkaufsstark. "
     "Du erkennst die Bedürfnisse der Menschen, bevor du verkaufst. "
@@ -38,58 +39,77 @@ SYSTEM_PROMPT_BASE = (
     "👉 Wer jetzt die Bots kauft und direkt auf Selly upgradet, spart sich bares Geld.\n"
     "👉 Das Ziel: Mehr Sichtbarkeit, weniger Aufwand, skalierbares Einkommen – mit einer intelligenten KI-Strategie.\n"
 
+    "Du gibst nie vorschnell auf – du behandelst Einwände charmant und führst immer zum Abschluss. "
+
     "Wenn der Nutzer kaufen möchte, biete ihm beide Optionen charmant an: "
     "1. Die 50 AI Business Bots für 297 €, die sofort einsetzbar sind. "
     "2. Oder das Kombipaket mit Selly für 589 €, wenn er gleich alles automatisieren will. "
-    "Verwende dabei die Variablen affiliate_link (nur Bots) und affiliate_link_bundle (Bundle). "
+    "Verwende dabei die Links `affiliate_link` (nur Bots) und `affiliate_link_bundle` (Bundle). "
     "Wenn der Nutzer sich für eine Option entscheidet oder direkt nach dem Link fragt, gib den entsprechenden Link sofort und klar aus. "
+
     "Wenn der Nutzer direkt sagt, dass er kaufen möchte (z. B. „Ich will das“, „Ich will kaufen“, „Gib mir den Link“, „Ich bin bereit“, „Wo kann ich bezahlen“), dann gib ihm sofort den passenden Kauf-Link aus – ohne weitere Rückfragen. "
-    "Wenn du in deiner Antwort affiliate_link oder affiliate_link_bundle erwähnst, dann gib bitte die komplette URL an – also den konkreten Wert, nicht nur den Variablennamen."
 )
 
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    user_msg = data.get("message")
+    user_msg = data.get("message", "").strip()
     tentary_id = data.get("tentary_id", "Sarah")
 
-    # ✅ AUTH-CHECK (für Sichtbarkeit)
-    if user_msg.strip().lower() == "auth-check":
+    # AUTH-Prüfung
+    if user_msg.lower() == "auth-check":
         try:
             conn = get_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT email FROM selly_users WHERE tentary_id = %s AND selly = true", (tentary_id,))
-            result = cur.fetchone()
-            if result:
-                return jsonify({"reply": "✅ Zugriff erlaubt"})
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM selly_users WHERE tentary_id = %s", (tentary_id,))
+            if cursor.fetchone():
+                return jsonify({"reply": "✅ Zugriff erlaubt – Selly ist aktiv für diesen Affiliate."})
             else:
-                return jsonify({"reply": "❌ Kein Zugriff – Selly nicht freigeschaltet"})
+                return jsonify({"reply": "⛔ Kein Zugriff – Affiliate besitzt Selly nicht."})
         except Exception as e:
-            return jsonify({"reply": f"Fehler bei Datenbankprüfung: {e}"}), 500
+            return jsonify({"reply": f"Fehler bei Datenbankprüfung: {str(e)}"})
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
-    # ✅ GPT-Nachrichtsverarbeitung
-    affiliate_link = f"https://sarahtemmel.tentary.com/p/q9fupC"
-    affiliate_link_bundle = f"https://sarahtemmel.tentary.com/p/e1I0e5"
-
-    if tentary_id.lower() != "sarah":
-        affiliate_link += f"?aref={tentary_id}"
-        affiliate_link_bundle += f"?aref={tentary_id}"
-
-    system_prompt = SYSTEM_PROMPT_BASE + f"\n\nDie Variable affiliate_link lautet: {affiliate_link}\nDie Variable affiliate_link_bundle lautet: {affiliate_link_bundle}\nHeute sprichst du im Auftrag von {tentary_id}."
-
+    # Normales Gespräch
     try:
+        # Fallback auf Sarahs Links
+        default_aff = "https://sarahtemmel.tentary.com/p/q9fupC"
+        default_bundle = "https://sarahtemmel.tentary.com/p/e1I0e5"
+
+        affiliate_link = default_aff
+        affiliate_link_bundle = default_bundle
+
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT affiliate_link, affiliate_link_bundle FROM selly_users WHERE tentary_id = %s", (tentary_id,))
+            result = cursor.fetchone()
+            if result:
+                affiliate_link = result[0] or default_aff
+                affiliate_link_bundle = result[1] or default_bundle
+        except Exception as e:
+            print("⚠️ DB-Fehler:", e)
+        finally:
+            if 'conn' in locals():
+                conn.close()
+
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": SYSTEM_PROMPT + f"\nHeute sprichst du im Auftrag von {tentary_id}.\nNutze folgende Links: affiliate_link = {affiliate_link}, affiliate_link_bundle = {affiliate_link_bundle}"},
                 {"role": "user", "content": user_msg}
             ],
             temperature=0.7
         )
+
         reply = response.choices[0].message.content
         return jsonify({"reply": reply})
+
     except Exception as e:
         return jsonify({"reply": f"❌ Fehler: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
