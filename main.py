@@ -58,18 +58,23 @@ def chat():
 
     # AUTH-Prüfung
     if user_msg.lower() == "auth-check":
-    try:
-        # Nur numerische IDs erlauben (68070, 71099 etc.)
-        if not tentary_id.isdigit():
-            return jsonify({"reply": "⛔ Ungültige ID – nur numerische Affiliate-IDs erlaubt."})
+        try:
+            # Nur numerische IDs erlauben (z. B. 68070)
+            if not tentary_id.isdigit():
+                return jsonify({"reply": "⛔ Ungültige ID – nur numerische Affiliate-IDs erlaubt."})
 
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM selly_users WHERE tentary_id = %s", (tentary_id,))
-        if cursor.fetchone():
-            return jsonify({"reply": "✅ Zugriff erlaubt – Selly ist aktiv für diesen Affiliate."})
-        else:
-            return jsonify({"reply": "⛔ Kein Zugriff – Affiliate besitzt Selly nicht."})
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM selly_users WHERE tentary_id = %s", (tentary_id,))
+            if cursor.fetchone():
+                return jsonify({"reply": "✅ Zugriff erlaubt – Selly ist aktiv für diesen Affiliate."})
+            else:
+                return jsonify({"reply": "⛔ Kein Zugriff – Affiliate besitzt Selly nicht."})
+        except Exception as e:
+            return jsonify({"reply": f"Fehler bei Datenbankprüfung: {str(e)}"})
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
     # Normales Gespräch
     try:
@@ -108,7 +113,6 @@ def chat():
 
     except Exception as e:
         return jsonify({"reply": f"❌ Fehler: {str(e)}"}), 500
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
