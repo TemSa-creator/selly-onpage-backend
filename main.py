@@ -54,18 +54,16 @@ SYSTEM_PROMPT = (
 def chat():
     data = request.get_json()
     user_msg = data.get("message", "").strip()
-    tentary_id = data.get("tentary_id", "Sarah")
+    affiliate_id = data.get("tentary_id", "ROOT").strip()  # URL param: ?affid=Zahl
 
-    # AUTH-Prüfung
     if user_msg.lower() == "auth-check":
         try:
-            # Nur numerische IDs erlauben (z. B. 68070)
-            if not tentary_id.isdigit():
-                return jsonify({"reply": "⛔ Ungültige ID – nur numerische Affiliate-IDs erlaubt."})
+            if affiliate_id == "ROOT":
+                return jsonify({"reply": "✅ Zugriff erlaubt – ROOT immer erlaubt."})
 
             conn = get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM selly_users WHERE tentary_id = %s", (tentary_id,))
+            cursor.execute("SELECT tentary_id FROM selly_users WHERE affiliate_id = %s", (affiliate_id,))
             if cursor.fetchone():
                 return jsonify({"reply": "✅ Zugriff erlaubt – Selly ist aktiv für diesen Affiliate."})
             else:
@@ -78,21 +76,21 @@ def chat():
 
     # Normales Gespräch
     try:
-        # Fallback auf Sarahs Links
         default_aff = "https://sarahtemmel.tentary.com/p/q9fupC"
         default_bundle = "https://sarahtemmel.tentary.com/p/e1I0e5"
-
         affiliate_link = default_aff
         affiliate_link_bundle = default_bundle
+        tentary_name = "Sarah"
 
         try:
             conn = get_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT affiliate_link, affiliate_link_bundle FROM selly_users WHERE tentary_id = %s", (tentary_id,))
+            cursor.execute("SELECT affiliate_link, affiliate_link_bundle, tentary_id FROM selly_users WHERE affiliate_id = %s", (affiliate_id,))
             result = cursor.fetchone()
             if result:
                 affiliate_link = result[0] or default_aff
                 affiliate_link_bundle = result[1] or default_bundle
+                tentary_name = result[2] or "Sarah"
         except Exception as e:
             print("⚠️ DB-Fehler:", e)
         finally:
@@ -102,7 +100,7 @@ def chat():
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT + f"\nHeute sprichst du im Auftrag von {tentary_id}.\nNutze folgende Links: affiliate_link = {affiliate_link}, affiliate_link_bundle = {affiliate_link_bundle}"},
+                {"role": "system", "content": SYSTEM_PROMPT + f"\nHeute sprichst du im Auftrag von {tentary_name}.\nNutze folgende Links: affiliate_link = {affiliate_link}, affiliate_link_bundle = {affiliate_link_bundle}"},
                 {"role": "user", "content": user_msg}
             ],
             temperature=0.7
