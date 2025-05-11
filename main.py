@@ -54,7 +54,7 @@ SYSTEM_PROMPT = (
 def chat():
     data = request.get_json()
     user_msg = data.get("message", "").strip()
-    affiliate_id = data.get("tentary_id", "ROOT").strip()  # URL param: ?affid=Zahl
+    affiliate_id = data.get("affiliate_id", "ROOT").strip()  # URL param: ?affid=Zahl
 
     if user_msg.lower() == "auth-check":
         try:
