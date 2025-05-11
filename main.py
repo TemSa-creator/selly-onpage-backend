@@ -62,13 +62,14 @@ def chat():
         cursor = conn.cursor()
         cursor.execute("SELECT affiliate_link, affiliate_link_bundle, tentary_id FROM selly_users WHERE affiliate_id = %s", (affiliate_id,))
         result = cursor.fetchone()
-        if not result and affiliate_id != "ROOT":
-            return jsonify({"reply": f"⛔ Kein Zugriff – Affiliate ID {affiliate_id} nicht autorisiert."})
 
-        if affiliate_id == "ROOT" or not result:
-            affiliate_link = "https://sarahtemmel.tentary.com/p/q9fupC"
-            affiliate_link_bundle = "https://sarahtemmel.tentary.com/p/e1I0e5"
-            tentary_name = "Sarah"
+        if not result:
+            if affiliate_id == "ROOT":
+                affiliate_link = "https://sarahtemmel.tentary.com/p/q9fupC"
+                affiliate_link_bundle = "https://sarahtemmel.tentary.com/p/e1I0e5"
+                tentary_name = "Sarah"
+            else:
+                return jsonify({"reply": f"⛔ Kein Zugriff – Affiliate ID {affiliate_id} nicht autorisiert."})
         else:
             affiliate_link = result[0]
             affiliate_link_bundle = result[1]
