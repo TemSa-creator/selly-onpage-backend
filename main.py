@@ -58,19 +58,18 @@ def chat():
 
     # AUTH-Prüfung
     if user_msg.lower() == "auth-check":
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM selly_users WHERE tentary_id = %s", (tentary_id,))
-            if cursor.fetchone():
-                return jsonify({"reply": "✅ Zugriff erlaubt – Selly ist aktiv für diesen Affiliate."})
-            else:
-                return jsonify({"reply": "⛔ Kein Zugriff – Affiliate besitzt Selly nicht."})
-        except Exception as e:
-            return jsonify({"reply": f"Fehler bei Datenbankprüfung: {str(e)}"})
-        finally:
-            if 'conn' in locals():
-                conn.close()
+    try:
+        # Nur numerische IDs erlauben (68070, 71099 etc.)
+        if not tentary_id.isdigit():
+            return jsonify({"reply": "⛔ Ungültige ID – nur numerische Affiliate-IDs erlaubt."})
+
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM selly_users WHERE tentary_id = %s", (tentary_id,))
+        if cursor.fetchone():
+            return jsonify({"reply": "✅ Zugriff erlaubt – Selly ist aktiv für diesen Affiliate."})
+        else:
+            return jsonify({"reply": "⛔ Kein Zugriff – Affiliate besitzt Selly nicht."})
 
     # Normales Gespräch
     try:
