@@ -71,7 +71,7 @@ def chat():
             except ValueError:
                 return jsonify({"reply": f"⛔ Ungültige Affiliate ID: {affiliate_id}"})
 
-            cursor.execute("SELECT affiliate_link, affiliate_link_bundle, tentary_id FROM selly_users WHERE affiliate_id = %s", (affiliate_int,))
+            cursor.execute("SELECT affiliate_link, affiliate_link_bundle, tentary_id FROM selly_users WHERE affiliate_id = %s", (affiliate_id.strip(),))
             result = cursor.fetchone()
             if not result:
                 return jsonify({"reply": f"⛔ Kein Zugriff – Affiliate ID {affiliate_id} nicht autorisiert."})
