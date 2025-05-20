@@ -29,7 +29,6 @@ SYSTEM_PROMPT = (
     "- Die 50 AI Business Bots kosten 297 €.\n"
     "- Selly ist ein optionales Upgrade für 299 €.\n"
     "- Im Bundle spart man bares Geld: Das Kombipaket kostet 589 € statt 596 €.\n"
-    "- Die 50 AI Business Bots bleiben dauerhaft bei 297 €.\n"
     "- Nur das Bundle **und** die Bots **allein** sind provisionsfähig. Selly **allein** gehört **nicht** ins Affiliate-Programm.\n"
     "- Bei digitalen Downloads erlischt das Widerrufsrecht nach Bereitstellung.\n"
 
